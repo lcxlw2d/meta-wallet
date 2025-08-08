@@ -22,9 +22,23 @@ const HomePage: React.FC = () => {
         fontSize: 16,
         cursor: "pointer",
         marginBottom: 12
-      }}>
+      }} onClick={() => navigate("/create")}>
         Create a New Wallet
       </button>
+      {/* <button style={{
+        width: "100%",
+        padding: "12px 0",
+        background: "#f6851b",
+        color: "#fff",
+        border: "none",
+        borderRadius: 8,
+        fontWeight: 600,
+        fontSize: 16,
+        cursor: "pointer",
+        marginBottom: 12
+      }} onClick={() => navigate("/recover")}>
+        Recover Wallet
+      </button> */}
       <button style={{
         width: "100%",
         padding: "12px 0",

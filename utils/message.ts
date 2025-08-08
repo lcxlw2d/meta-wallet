@@ -29,4 +29,26 @@ export class PortMessage {
     })
     return this
   }
+
+  connect = (uiType: string) => {
+    if (!this.port) {
+      this.port = chrome.runtime.connect({ name: uiType })
+    }
+    return this
+  }
+
+  request = (data: any) => {
+    if (!this.port) return Promise.reject("Port is not connected")
+    const requestId = this.requestIdPool.pop()
+    if (requestId === undefined) {
+      return Promise.reject("No available request ID")
+    }
+    return new Promise((resolve, reject) => {
+      this.waitingMap.set(requestId, { data, resolve, reject })
+      this.port.postMessage({
+        _type_: `${this.EVENT_PREFIX}request`,
+        data: { ...data, requestId }
+      })
+    })
+  }
 }

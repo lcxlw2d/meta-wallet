@@ -2,21 +2,30 @@ import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import * as bip39 from "bip39"
 import { ethers } from "ethers"
-
+import { useRequest } from "ahooks"
+import { WalletStore } from "~store/WalletStore"
 
 export default function ImportPage() {
   const [input, setInput] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { updateWallet } = WalletStore.useContainer()
+
+  // useRequest(
+  //   async () => {
+  //     const info = await wallet.helloWorld()
+  //     return info
+  //   },
+  // )
 
   const handleImport = async () => {
     const cleaned = input.trim()
     setError("")
     setLoading(true)
-
+    console.log(ethers)
     try {
-      const provider = new ethers.JsonRpcProvider(
+      const provider = new ethers.providers.JsonRpcProvider(
         `https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b`
       );
       let wallet: ethers.Wallet
@@ -25,8 +34,7 @@ export default function ImportPage() {
       if (bip39.validateMnemonic(cleaned)) {
         // 助记词导入
         const seed = await bip39.mnemonicToSeed(cleaned)
-        const uint8Seed = Uint8Array.from(seed)
-        const hdNode = ethers.HDNodeWallet.fromSeed(uint8Seed).derivePath("m/44'/60'/0'/0/0")
+        const hdNode = ethers.utils.HDNode.fromSeed(seed).derivePath("m/44'/60'/0'/0/0")
         wallet = new ethers.Wallet(hdNode.privateKey)
         type = "mnemonic"
       } else if (/^(0x)?[0-9a-fA-F]{64}$/.test(cleaned)) {
@@ -41,10 +49,12 @@ export default function ImportPage() {
       }
 
       // 存储
-      await chrome.storage.local.set({
+      localStorage.setItem("address", wallet.address)
+      localStorage.setItem("type", type)
+      localStorage.setItem("privateKey", type === "privateKey" ? wallet.privateKey : "")
+      updateWallet({
         address: wallet.address,
-        type,
-        mnemonic: type === "mnemonic" ? cleaned : "",
+        // mnemonic: type === "mnemonic" ? cleaned : "",
         privateKey: type === "privateKey" ? wallet.privateKey : ""
       })
 

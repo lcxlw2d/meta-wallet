@@ -1,64 +1,201 @@
-import React, { useEffect, useState } from "react"
+import React, { useState, useEffect } from "react"
+import { WalletStore } from "~store/WalletStore"
 import { ethers } from "ethers"
 
-export default function WalletPage() {
-  const [address, setAddress] = useState("")
-  const [mnemonic, setMnemonic] = useState("")
-  const [showMnemonic, setShowMnemonic] = useState(false)
-  const [balance, setBalance] = useState("")
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function symbol() view returns (string)"
+]
+
+const ERC721_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function symbol() view returns (string)"
+]
+
+const ERC1155_ABI = [
+  "function balanceOf(address account, uint256 id) view returns (uint256)"
+]
+
+const WalletInfoPage = () => {
+  const { wallet, updateWallet, tokenList, updateTokens, clearWallet } = WalletStore.useContainer()
+  const [tokenAddress, setTokenAddress] = useState("")
+  const [tokenType, setTokenType] = useState("ERC20")
+  const [tokenId, setTokenId] = useState("")
+  const [tokens, setTokens] = useState<any[]>([])
 
   useEffect(() => {
-    // 获取存储信息
-    chrome.storage.local.get(["address", "mnemonic"], async (res) => {
-      if (res.address) {
-        setAddress(res.address)
-        setMnemonic(res.mnemonic || "")
-
-        // 获取 ETH 余额（使用默认 provider 或 RPC）
+    const fetchWalletInfo = async () => {
+      const storedWallet = localStorage.getItem("address")
+      if (storedWallet) {
         try {
-          const provider = ethers.getDefaultProvider("mainnet")
-          const balanceBigInt = await provider.getBalance(res.address)
-          const ether = ethers.formatEther(balanceBigInt)
-          setBalance(parseFloat(ether).toFixed(4))
-        } catch (err) {
-          console.error("Failed to get balance", err)
-          setBalance("N/A")
+          const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b")
+          const balance = await provider.getBalance(storedWallet)
+          const ethBalance = ethers.utils.formatEther(balance)
+          console.log(`钱包地址: ${storedWallet}, 以太坊余额: ${ethBalance} ETH`)
+          updateWallet({ address: storedWallet, balance: parseFloat(ethBalance) })
+        } catch (error) {
+          console.error("获取钱包信息失败", error)
         }
       }
-    })
+    }
+    fetchWalletInfo()
+    const fetchStoredTokens = async () => {
+      const storedTokens = localStorage.getItem("tokens")
+      if (storedTokens) {
+        const _tokens = storedTokens.split(",");
+        setTokens(_tokens.length ? _tokens : []);
+      }
+    }
+    fetchStoredTokens()
   }, [])
 
-  const handleCopy = async () => {
-    if (address) {
-      await navigator.clipboard.writeText(address)
-      alert("地址已复制")
+  useEffect(() => {
+    updateTokens(tokens)
+  }, [tokens])
+
+  const handleAddToken = async () => {
+    if (!wallet?.address || !tokenAddress) return
+    try {
+      const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b")
+      let contract, balance, symbol
+
+      if (tokenType === "ERC20") {
+        contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider)
+        balance = await contract.balanceOf(wallet.address)
+        symbol = await contract.symbol()
+        setTokens(prev => [...prev, { address: tokenAddress, type: tokenType, balance: balance.toString(), symbol }])
+      } else if (tokenType === "ERC721") {
+        contract = new ethers.Contract(tokenAddress, ERC721_ABI, provider)
+        balance = await contract.balanceOf(wallet.address)
+        symbol = await contract.symbol()
+        setTokens(prev => [...prev, { address: tokenAddress, type: tokenType, balance: balance.toString(), symbol }])
+      } else if (tokenType === "ERC1155" && tokenId) {
+        contract = new ethers.Contract(tokenAddress, ERC1155_ABI, provider)
+        balance = await contract.balanceOf(wallet.address, tokenId)
+        setTokens(prev => [...prev, { address: tokenAddress, type: tokenType, balance: balance.toString(), tokenId }])
+      }
+    } catch (err) {
+      console.error("添加 token 失败", err)
     }
   }
 
-  return (
-    <div style={{ padding: 20, width: 320 }}>
-      <h2>钱包信息</h2>
-      <p><strong>地址：</strong> {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "未导入"}</p>
-      <p><strong>余额：</strong> {balance} ETH</p>
-      <button onClick={handleCopy} style={buttonStyle}>复制地址</button>
+  const handleRemoveToken = (indexToRemove: number) => {
+    const updated = tokens.filter((_, index) => index !== indexToRemove)
+    setTokens(updated)
+  }
 
-      {mnemonic && (
+  const getTokenIcon = (symbol?: string) => {
+    if (!symbol) return null
+    return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${tokenAddress}/logo.png`
+  }
+
+  return (
+    <div style={{ padding: 20, width: 300 }}>
+      <h2 style={{ textAlign: "center", marginBottom: 20 }}>钱包信息</h2>
+
+      {wallet?.address && (
         <>
-          <button onClick={() => setShowMnemonic(!showMnemonic)} style={buttonStyle}>
-            {showMnemonic ? "隐藏助记词" : "查看助记词"}
-          </button>
-          {showMnemonic && (
-            <div style={{
-              background: "#f8f8f8",
-              padding: 12,
-              borderRadius: 6,
-              marginTop: 10,
-              fontSize: 14,
-              color: "#333"
+          <p><strong>地址：</strong> {wallet.address}</p>
+          <p><strong>ETH Balance：</strong> {wallet.balance} ETH</p>
+          <h3 style={{ marginTop: 30 }}>添加 Token</h3>
+
+          <input
+            placeholder="合约地址"
+            value={tokenAddress}
+            onChange={(e) => setTokenAddress(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 8,
+              marginBottom: 8,
+              borderRadius: 4,
+              border: "1px solid #ccc"
+            }}
+          />
+
+          <select
+            value={tokenType}
+            onChange={(e) => setTokenType(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 8,
+              marginBottom: 8,
+              borderRadius: 4,
+              border: "1px solid #ccc"
             }}>
-              {mnemonic}
+            <option value="ERC20">ERC-20</option>
+            <option value="ERC721">ERC-721</option>
+            <option value="ERC1155">ERC-1155</option>
+          </select>
+
+          {tokenType === "ERC1155" && (
+            <input
+              placeholder="Token ID (仅 ERC-1155 需要)"
+              value={tokenId}
+              onChange={(e) => setTokenId(e.target.value)}
+              style={{
+                width: "100%",
+                padding: 8,
+                marginBottom: 8,
+                borderRadius: 4,
+                border: "1px solid #ccc"
+              }}
+            />
+          )}
+
+          <button onClick={handleAddToken} style={{ ...buttonStyle }}>
+            添加 Token
+          </button>
+
+          {tokens.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h4>已添加的 Token：</h4>
+              {tokens.map((token, index) => (
+                <div
+                  key={index}
+                  style={{
+                    fontSize: 14,
+                    marginBottom: 12,
+                    padding: 8,
+                    background: "#f4f4f4",
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between"
+                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {token.symbol && (
+                      <img
+                        src={getTokenIcon(token.symbol)}
+                        alt={token.symbol}
+                        style={{ width: 20, height: 20, borderRadius: "50%" }}
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    )}
+                    <span>
+                      <strong>{token.symbol || token.type}</strong>：{token.balance} {token.tokenId && `(Token ID: ${token.tokenId})`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveToken(index)}
+                    style={{
+                      padding: "4px 8px",
+                      fontSize: 12,
+                      background: "#e74c3c",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer"
+                    }}>
+                    删除
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+
+          <button onClick={clearWallet} style={{ ...buttonStyle }}>
+            断开钱包
+          </button>
         </>
       )}
     </div>
@@ -76,3 +213,5 @@ const buttonStyle: React.CSSProperties = {
   fontWeight: 600,
   cursor: "pointer"
 }
+
+export default WalletInfoPage
