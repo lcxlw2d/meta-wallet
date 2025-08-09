@@ -20,9 +20,12 @@ export class PortMessage {
     }
   >() // 这里需要使用一个 map，同时返回一个 resolve 和 reject，通信使用 Promise 来管理，类似与请求 API 一样。
   listen = (listenCallback: any) => {
+    console.log("Listening for messages on port:", this.port.name)
     if (!this.port) return
     this.listenCallback = listenCallback
-    this.port.onMessage.addListener(({ _type_, data }) => {
+    this.port.onMessage.addListener((msg) => {
+      console.log("Received request:", msg)
+      const { _type_, data } = msg
       if (_type_ === `${this.EVENT_PREFIX}request`) {
         this.listenCallback(data)
       }
