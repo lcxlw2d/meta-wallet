@@ -1,76 +1,194 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>Minimal Dapp Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>测试 myWallet 注入</title>
     <style>
       body {
-        font-family: sans-serif;
-        background: #f9f9f9;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f5f5f5;
       }
       .container {
-        background: #fff;
-        padding: 2rem;
-        margin-top: 5rem;
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        width: 100%;
-        max-width: 400px;
-        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
       }
       button {
-        padding: 0.7rem 1.5rem;
+        background: #007aff;
+        color: white;
         border: none;
-        border-radius: 4px;
-        background: #0070f3;
-        color: #fff;
-        font-size: 1rem;
+        padding: 10px 20px;
+        margin: 5px;
+        border-radius: 5px;
         cursor: pointer;
-        margin-top: 1rem;
-        transition: background 0.2s;
       }
       button:hover {
-        background: #005bb5;
+        background: #0056cc;
       }
-      .address {
-        margin-top: 1rem;
-        word-break: break-all;
-        color: #333;
-        font-size: 0.95rem;
+      .log {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h2>Minimal Dapp Example</h2>
-      <button id="connectBtn">Connect Wallet</button>
-      <div class="address" id="address"></div>
-    </div>
-    <script>
-      const connectBtn = document.getElementById("connectBtn")
-      const addressDiv = document.getElementById("address")
+      <h1>🧪 测试 myWallet 注入</h1>
+      <p>这个页面用于测试通过 background script 注入的 myWallet 对象。</p>
 
-      connectBtn.onclick = async () => {
+      <div>
+        <button onclick="checkObjects()">检查注入对象</button>
+        <button onclick="testMyWallet()">测试 myWallet</button>
+        <button onclick="testHello()">测试 hello 对象</button>
+        <button onclick="clearLog()">清空日志</button>
+      </div>
+
+      <div id="status" class="status info">等待检查...</div>
+
+      <div id="log" class="log"></div>
+    </div>
+
+    <script>
+      let logCount = 0
+
+      function log(message) {
+        const logEl = document.getElementById("log")
+        const time = new Date().toLocaleTimeString()
+        logCount++
+        logEl.innerHTML += `[${time}] [${logCount}] ${message}\n`
+        logEl.scrollTop = logEl.scrollHeight
+        console.log(`[${logCount}] ${message}`)
+      }
+
+      function updateStatus(message, type = "info") {
+        const statusEl = document.getElementById("status")
+        statusEl.textContent = message
+        statusEl.className = `status ${type}`
+      }
+
+      function clearLog() {
+        document.getElementById("log").innerHTML = ""
+        logCount = 0
+      }
+
+      function checkObjects() {
+        log("🔍 检查注入的对象...")
+
+        let foundCount = 0
+
+        // 检查 myWallet 对象
         if (window.myWallet) {
-          try {
-            const accounts = await window.myWallet.request({
-              method: "eth_requestAccounts"
-            })
-            addressDiv.textContent = "Connected: " + accounts[0]
-          } catch (err) {
-            addressDiv.textContent = "Connection failed."
-          }
+          log("✅ myWallet 对象存在")
+          const methods = Object.getOwnPropertyNames(window.myWallet)
+          log(`📋 myWallet 方法: ${methods.join(", ")}`)
+          foundCount++
         } else {
-          addressDiv.textContent = "MetaMask not detected."
+          log("❌ myWallet 对象不存在")
+        }
+
+        // 检查 hello 对象
+        if (window.hello) {
+          log("✅ hello 对象存在")
+          log(`📋 hello 内容: ${JSON.stringify(window.hello)}`)
+          foundCount++
+        } else {
+          log("❌ hello 对象不存在")
+        }
+
+        // 检查注入标志
+        if (window.myWalletInjected) {
+          log("✅ myWalletInjected 标志存在")
+          foundCount++
+        } else {
+          log("❌ myWalletInjected 标志不存在")
+        }
+
+        if (foundCount > 0) {
+          updateStatus(`找到 ${foundCount} 个注入对象`, "success")
+        } else {
+          updateStatus("没有找到注入对象", "error")
         }
       }
+
+      function testMyWallet() {
+        log("🔄 测试 myWallet 连接功能...")
+        updateStatus("正在请求连接...", "info")
+
+        if (window.myWallet && window.myWallet.connect) {
+          log("📞 调用 myWallet.connect()...")
+          window.myWallet
+            .connect()
+            .then((result) => {
+              log(`✅ myWallet.connect() 成功: ${JSON.stringify(result)}`)
+              updateStatus("钱包连接成功！", "success")
+            })
+            .catch((error) => {
+              log(`❌ myWallet.connect() 失败: ${error.message}`)
+              updateStatus(`连接失败: ${error.message}`, "error")
+            })
+        } else {
+          log("❌ myWallet 对象或 connect 方法不存在")
+          updateStatus("myWallet 不可用", "error")
+        }
+      }
+
+      function testHello() {
+        log("🔄 测试 hello 对象...")
+
+        if (window.hello) {
+          log(`✅ hello 对象内容: ${JSON.stringify(window.hello)}`)
+          updateStatus("hello 对象正常", "success")
+        } else {
+          log("❌ hello 对象不存在")
+          updateStatus("hello 对象不存在", "error")
+        }
+      }
+
+      // 监听事件
+      window.addEventListener("myWalletReady", (event) => {
+        log("🎉 收到 myWalletReady 事件")
+        updateStatus("myWallet 已就绪", "success")
+      })
+
+      // 页面加载时自动检查
+      window.addEventListener("load", () => {
+        log("📄 页面加载完成")
+        // 等待一段时间让注入完成
+        setTimeout(() => {
+          checkObjects()
+        }, 2000)
+      })
+
+      log("🚀 测试页面已启动")
     </script>
   </body>
 </html>

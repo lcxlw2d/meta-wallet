@@ -1,0 +1,43 @@
+export { }
+const extensionApi = chrome;
+// let myPort = extensionApi.runtime.connect({ name: "port-from-cs" });
+
+// console.log(myPort);
+// myPort.onMessage.addListener((m) => {
+//   console.log("In content script, received message from background script: ");
+//   console.log(m.greeting);
+// });
+
+// document.body.addEventListener("click", () => {
+//   console.log("In content script, clicked the page");
+//   myPort.postMessage({ greeting: "they clicked the page!" });
+// });
+let pt = extensionApi.runtime.connect({ name: "popup" });
+// document.querySelector("#connectBtn")?.addEventListener("click", () => {
+//   console.log("In content script, clicked the button");
+//   pt.postMessage({
+//     _type_: "ETH_WALLET_request", data: {
+//       method: "helloWorld"
+//     }
+//   });
+// });
+const coreObj = {
+  eth_requestAccounts: () => {
+    pt.postMessage({
+      _type_: "ETH_WALLET_request", data: {
+        method: "eth_requestAccounts"
+      }
+    });
+  }
+}
+
+function injectScript(filePath: string) {
+  const script = document.createElement("script")
+  script.src = chrome.runtime.getURL(filePath) // 获取扩展内的真实路径
+  script.type = "text/javascript"
+  document.documentElement.appendChild(script)
+  script.onload = () => script.remove()
+}
+
+// 注入 wallet.js
+injectScript("inject/wallet.ts")
