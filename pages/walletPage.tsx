@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react"
 import { WalletStore } from "~store/WalletStore"
 import { ethers } from "ethers"
+import { detectTokenType } from "../utils/chain"
+import { useNavigate } from "react-router-dom"
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
@@ -22,6 +24,7 @@ const WalletInfoPage = () => {
   const [tokenType, setTokenType] = useState("ERC20")
   const [tokenId, setTokenId] = useState("")
   const [tokens, setTokens] = useState<any[]>([])
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchWalletInfo = async () => {
@@ -42,7 +45,7 @@ const WalletInfoPage = () => {
     const fetchStoredTokens = async () => {
       const storedTokens = localStorage.getItem("tokens")
       if (storedTokens) {
-        const _tokens = storedTokens.split(",");
+        const _tokens = JSON.parse(storedTokens);
         setTokens(_tokens.length ? _tokens : []);
       }
     }
@@ -51,7 +54,17 @@ const WalletInfoPage = () => {
 
   useEffect(() => {
     updateTokens(tokens)
+    console.log("Updated tokens:", tokens)
+    localStorage.setItem("tokens", JSON.stringify(tokens))
   }, [tokens])
+
+  useEffect(() => {
+    console.log(tokenAddress)
+    detectTokenType(tokenAddress).then(_tokenType => {
+      console.log("检测到的 Token 类型:", _tokenType)
+      setTokenType(_tokenType)
+    })
+  }, [tokenAddress])
 
   const handleAddToken = async () => {
     if (!wallet?.address || !tokenAddress) return
@@ -97,6 +110,14 @@ const WalletInfoPage = () => {
         <>
           <p><strong>地址：</strong> {wallet.address}</p>
           <p><strong>ETH Balance：</strong> {wallet.balance} ETH</p>
+
+          <button
+            style={{ ...buttonStyle }}
+            onClick={() => navigate('/transaction')}
+          >
+            发送交易
+          </button>
+
           <h3 style={{ marginTop: 30 }}>添加 Token</h3>
 
           <input
@@ -111,8 +132,9 @@ const WalletInfoPage = () => {
               border: "1px solid #ccc"
             }}
           />
+          <p>{tokenType}</p>
 
-          <select
+          {/* <select
             value={tokenType}
             onChange={(e) => setTokenType(e.target.value)}
             style={{
@@ -125,7 +147,7 @@ const WalletInfoPage = () => {
             <option value="ERC20">ERC-20</option>
             <option value="ERC721">ERC-721</option>
             <option value="ERC1155">ERC-1155</option>
-          </select>
+          </select> */}
 
           {tokenType === "ERC1155" && (
             <input
@@ -172,7 +194,7 @@ const WalletInfoPage = () => {
                       />
                     )}
                     <span>
-                      <strong>{token.symbol || token.type}</strong>：{token.balance} {token.tokenId && `(Token ID: ${token.tokenId})`}
+                      <strong>{token.symbol || token.type}</strong>：{(token.balance / 1000000000000000000)} {token.symbol} {token.tokenId && `(Token ID: ${token.tokenId})`}
                     </span>
                   </div>
                   <button

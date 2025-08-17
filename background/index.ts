@@ -41,6 +41,11 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
       try {
         await chrome.action.openPopup()
         console.log("🔔 已打开扩展弹窗")
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_CONNECT_RESPONSE',
+          success: true,
+          error: ""
+        })
       } catch (popupError) {
         console.warn("⚠️ 无法自动打开弹窗，用户需要手动点击扩展图标")
 
@@ -70,6 +75,7 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
 // 监听来自content script的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.tab && sender.tab.id) {
+    console.log("📨 Background script 收到来自 content script 的消息", message)
     handleContentScriptMessage(sender.tab.id, message, sender)
   }
 })

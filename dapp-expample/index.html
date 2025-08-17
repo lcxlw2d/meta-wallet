@@ -72,6 +72,10 @@
         <button onclick="clearLog()">清空日志</button>
       </div>
 
+      <div>
+        <button onclick="testSignMessage()">测试</button>
+      </div>
+
       <div id="status" class="status info">等待检查...</div>
 
       <div id="log" class="log"></div>
@@ -158,6 +162,21 @@
         } else {
           log("❌ myWallet 对象或 connect 方法不存在")
           updateStatus("myWallet 不可用", "error")
+        }
+      }
+
+      function testSignMessage() {
+        if (window.myWallet && window.myWallet.signMessage) {
+          window.myWallet
+            .signMessage("请求签名")
+            .then((signature) => {
+              log(`✅ 签名成功: ${signature}`)
+              updateStatus("签名成功", "success")
+            })
+            .catch((error) => {
+              log(`❌ 签名失败: ${error.message}`)
+              updateStatus(`签名失败: ${error.message}`, "error")
+            })
         }
       }
 

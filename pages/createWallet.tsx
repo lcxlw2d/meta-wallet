@@ -3,6 +3,7 @@ import { ethers } from "ethers"
 import CryptoJS from "crypto-js"
 import { message } from "antd"
 import { WalletStore } from "~store/WalletStore"
+import { useNavigate } from "react-router-dom"
 
 const CreateWalletPopup = () => {
   const [mnemonic, setMnemonic] = useState("")
@@ -11,6 +12,7 @@ const CreateWalletPopup = () => {
   const [success, setSuccess] = useState(false)
   const [showMnemonic, setShowMnemonic] = useState(false)
   const { updateWallet } = WalletStore.useContainer()
+  const navigate = useNavigate()
 
   const generateWallet = () => {
     const wallet = ethers.Wallet.createRandom()
@@ -29,7 +31,10 @@ const CreateWalletPopup = () => {
       localStorage.setItem("encryptedMnemonic", encrypted)
       localStorage.setItem("address", address)
       updateWallet({ address, encryptedMnemonic: encrypted });
-      setSuccess(true)
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/wallet');
+      }, 500);
     } catch (err) {
       console.error("保存失败", err)
     }
