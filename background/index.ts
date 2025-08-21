@@ -1,4 +1,7 @@
 import injectMyWallet from "./injectWallet";
+import { ethers } from "ethers";
+import { getProvider, sepolia } from "../lib/rpc"
+import * as Storage from "../utils/storage"
 
 const inject = async (tabId: number) => {
   try {
@@ -17,8 +20,22 @@ const inject = async (tabId: number) => {
   }
 }
 
+async function getWallet() {
+  const privateKey = await Storage.getItem("privateKey")
+  if (!privateKey) return null
+  return new ethers.Wallet(privateKey, getProvider(sepolia))
+}
+
+// 在用户手势中调用 openPopup：比如右键菜单/命令/内容脚本的同步回调
+async function openPopupTo(route: string, search = "") {
+  await chrome.storage.local.set({ popupIntent: { route, search } })
+  // 必须在用户手势内，否则会报错
+  // @ts-ignore
+  await chrome.action.openPopup()
+}
+
 // 监听来自 content script 的消息
-const handleContentScriptMessage = async (tabId: number, message: any, sender: any) => {
+const handleContentScriptMessage = async (tabId: number, message: any, sender: any, sendResponse: (response: any) => void) => {
   if (message.type === 'WALLET_CONNECT_REQUEST' && message.source === 'contentScript') {
     console.log("📨 Background script 收到来自 content script 的连接请求")
 
@@ -70,13 +87,76 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
       })
     }
   }
+  if (message.type === 'WALLET_SIGN_MESSAGE_REQUEST' && message.source === 'contentScript') {
+    console.log("📨 Background script 收到来自 content script 的签名请求")
+    try {
+      const { message: msgToSign } = message
+      if (!msgToSign) {
+        throw new Error("缺少签名消息")
+      }
+      openPopupTo("/signMessage", `?message=${encodeURIComponent(msgToSign)}`)
+
+    } catch (error) {
+      console.error("❌ 处理签名请求失败:", error)
+    }
+  }
+  if (message.type === 'WALLET_SIGN_MESSAGE_RESPONSE') {
+    try {
+      const wallet = await getWallet()
+
+      if (!wallet) {
+        throw new Error("未找到钱包")
+      }
+      const { message: msgToSign } = message
+      if (!msgToSign) {
+        throw new Error("缺少签名消息")
+      }
+      // 使用 wallet 进行消息签名
+      const signature = await wallet.signMessage(msgToSign)
+      console.log("🖊️ 消息签名成功:", signature)
+      chrome.runtime.sendMessage({
+        type: "WALLET_SIGN_MESSAGE_RESPONSE_AFTER",
+        success: true,
+        signature,
+        message: msgToSign
+      })
+      // sendResponse({ type: "WALLET_SIGN_MESSAGE_RESPONSE", success: true, signature })
+    } catch (error) {
+      console.error("❌ 处理签名确认失败:", error)
+      chrome.runtime.sendMessage({ type: "WALLET_SIGN_MESSAGE_RESPONSE_AFTER", success: false, error: error.message })
+    }
+
+
+  }
+  if (message.type === 'WALLET_TRANSACTION_REQUEST') {
+    console.log("📨 Background script 收到来自 content script 的交易请求", message)
+    try {
+      const { tx } = message
+      if (!tx) {
+        throw new Error("缺少交易信息")
+      }
+      const wallet = await getWallet()
+      if (!wallet) {
+        throw new Error("未找到钱包")
+      }
+      const receipt = await wallet.sendTransaction(tx);
+      await receipt.wait(); // 等待链上确认交易
+      console.log(receipt);
+      chrome.runtime.sendMessage({ type: "WALLET_TRANSACTION_RESPONSE", success: true, receipt })
+    } catch (error) {
+      console.error("❌ 处理交易请求失败:", error)
+    }
+  }
 }
 
 // 监听来自content script的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("📨 Background script 收到来自 content script 的消息!!!!", message, sender)
+
   if (sender.tab && sender.tab.id) {
-    console.log("📨 Background script 收到来自 content script 的消息", message)
-    handleContentScriptMessage(sender.tab.id, message, sender)
+    handleContentScriptMessage(sender.tab.id, message, sender, sendResponse)
+  } else {
+    handleContentScriptMessage(null, message, sender, sendResponse)
   }
 })
 

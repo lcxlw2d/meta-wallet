@@ -4,6 +4,7 @@ import CryptoJS from "crypto-js"
 import { message } from "antd"
 import { WalletStore } from "~store/WalletStore"
 import { useNavigate } from "react-router-dom"
+import * as Storage from "../utils/storage"
 
 const CreateWalletPopup = () => {
   const [mnemonic, setMnemonic] = useState("")
@@ -13,6 +14,7 @@ const CreateWalletPopup = () => {
   const [showMnemonic, setShowMnemonic] = useState(false)
   const { updateWallet } = WalletStore.useContainer()
   const navigate = useNavigate()
+  const [wallet, setWallet] = useState(null)
 
   const generateWallet = () => {
     const wallet = ethers.Wallet.createRandom()
@@ -22,6 +24,7 @@ const CreateWalletPopup = () => {
     setAddress(addr)
     setSuccess(false)
     setShowMnemonic(false)
+    setWallet(wallet)
   }
 
   const saveWallet = async () => {
@@ -30,6 +33,10 @@ const CreateWalletPopup = () => {
       const encrypted = CryptoJS.AES.encrypt(mnemonic, password).toString()
       localStorage.setItem("encryptedMnemonic", encrypted)
       localStorage.setItem("address", address)
+      localStorage.setItem("privateKey", wallet.privateKey)
+      Storage.setItem("encryptedMnemonic", encrypted)
+      Storage.setItem("address", address)
+      Storage.setItem("privateKey", wallet.privateKey)
       updateWallet({ address, encryptedMnemonic: encrypted });
       setSuccess(true);
       setTimeout(() => {

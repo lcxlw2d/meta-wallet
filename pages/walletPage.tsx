@@ -29,6 +29,7 @@ const WalletInfoPage = () => {
   useEffect(() => {
     const fetchWalletInfo = async () => {
       const storedWallet = localStorage.getItem("address")
+
       if (storedWallet) {
         try {
           const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b")

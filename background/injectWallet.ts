@@ -66,13 +66,12 @@ export default function injectMyWallet() {
     },
     signMessage: async (message: string): Promise<string> => {
       console.log(`✍️ 签名消息: ${message}`)
-      // ethers 不能在页面直接使用，需通过 content/background script 处理签名
+
       window.postMessage({
-        type: 'WALLET_CONNECT_REQUEST',
+        type: 'WALLET_SIGN_MESSAGE_REQUEST',
         source: 'myWallet',
         message,
-        timestamp: Date.now(),
-        data: { method: "signMessage", payload: message }
+        timestamp: Date.now()
       }, '*')
 
       const signature = await new Promise<string>((resolve, reject) => {
@@ -95,6 +94,9 @@ export default function injectMyWallet() {
       })
       console.log("🖊️ 签名结果:", signature)
       return signature
+    },
+    transaction: async (tx: ethers.providers.TransactionRequest) => {
+
     },
     getStatus: () => {
       console.log("📊 获取状态...")

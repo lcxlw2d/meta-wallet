@@ -5,6 +5,7 @@ import WalletPage from '~pages/walletPage';
 import CreateWallet from '~pages/createWallet';
 import RecoverWalletPage from '~pages/recoverWallet';
 import TransactionPage from '~pages/transaction';
+import SignMessage from '~pages/signMessage';
 import type { RouteObject } from "react-router-dom"
 
 const routes: RouteObject[] = [
@@ -14,5 +15,6 @@ const routes: RouteObject[] = [
   { path: "/create", element: <CreateWallet /> },
   { path: "/recover", element: <RecoverWalletPage /> },
   { path: "/transaction", element: <TransactionPage /> },
+  { path: "/signMessage", element: <SignMessage /> },
 ]
 export default routes

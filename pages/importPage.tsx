@@ -4,6 +4,7 @@ import * as bip39 from "bip39"
 import { ethers } from "ethers"
 import { useRequest } from "ahooks"
 import { WalletStore } from "~store/WalletStore"
+import * as Storage from "../utils/storage"
 
 export default function ImportPage() {
   const [input, setInput] = useState("")
@@ -51,7 +52,11 @@ export default function ImportPage() {
       // 存储
       localStorage.setItem("address", wallet.address)
       localStorage.setItem("type", type)
-      localStorage.setItem("privateKey", type === "privateKey" ? wallet.privateKey : "")
+      localStorage.setItem("privateKey", wallet.privateKey)
+      Storage.setItem("address", wallet.address)
+      Storage.setItem("type", type)
+      Storage.setItem("privateKey", wallet.privateKey)
+
       updateWallet({
         address: wallet.address,
         // mnemonic: type === "mnemonic" ? cleaned : "",

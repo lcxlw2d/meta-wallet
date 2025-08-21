@@ -1,4 +1,4 @@
-// 定义一个WalletInfo类型
+import { ethers } from 'ethers';
 export interface WalletInfo {
   address: string; // 钱包地址
   encryptedMnemonic?: string; // 助记词，可选
@@ -13,7 +13,8 @@ declare global {
       connect: () => Promise<any>
       disconnect: () => Promise<any>
       getAccount: () => Promise<any>
-      signMessage: (message: string) => Promise<string>
+      signMessage: (message: string) => Promise<string>,
+      transaction: (tx: ethers.providers.TransactionRequest) => Promise<any>,
       getStatus: () => any
     }
     myWalletInjected?: boolean

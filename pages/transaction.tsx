@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
 import { WalletStore } from "~store/WalletStore"
+import * as Storage from "~utils/storage"
+import { getProvider, sepolia } from "../lib/rpc"
+import { useNavigate } from '~node_modules/react-router-dom/dist';
 
 const buttonStyle: React.CSSProperties = {
   width: "100%",
@@ -19,25 +22,57 @@ const TransactionPage: React.FC = () => {
   const [recipient, setRecipient] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [status, setStatus] = useState<string>('');
+  const navigate = useNavigate();
 
   const { wallet, updateWallet, tokenList, updateTokens, clearWallet } = WalletStore.useContainer()
 
+  async function getWallet() {
+    const privateKey = await Storage.getItem("privateKey")
+    if (!privateKey) return null
+    return new ethers.Wallet(privateKey, getProvider(sepolia))
+  }
 
   // Send transaction
   const sendTransaction = async () => {
-    console.log("wallet in transaction page:", wallet);
+    console.log("wallet in transaction page:", wallet, recipient, amount);
     if (!recipient || !amount) {
       setStatus('请输入收款地址和金额');
       return;
     }
+    // 基本校验
+    if (!ethers.utils.isAddress(recipient.trim())) {
+      alert("收款地址无效")
+      return
+    }
+    const amt = amount.trim()
+    if (!amt || Number.isNaN(Number(amt)) || Number(amt) <= 0) {
+      alert("转账金额无效")
+      return
+    }
     try {
-      const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b")
+      const provider = getProvider(sepolia);
+      const w = await getWallet();
+      if (!w) {
+        setStatus('未找到钱包，请先创建或导入钱包');
+        return;
+      }
+      // 使用 wallet 实例作为 signer
+      (provider as any).getSigner = () => w.connect(provider);
+
       const signer = provider.getSigner();
       const tx = await signer.sendTransaction({
         to: recipient,
         value: ethers.utils.parseEther(amount),
       });
-      setStatus(`交易已发送，hash: ${tx.hash}`);
+      const receipt = await tx.wait();
+      console.log('交易回执:', receipt);
+      // 根据回执判断交易状态
+      if (receipt.status === 1) {
+        setStatus(`交易成功，hash: ${tx.hash}`);
+        navigate(-1);
+      } else {
+        setStatus(`交易失败，hash: ${tx.hash}`);
+      }
     } catch (err: any) {
       setStatus(`交易失败: ${err.message}`);
     }
