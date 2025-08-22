@@ -4,6 +4,8 @@ import { ethers } from "ethers"
 import { detectTokenType } from "../utils/chain"
 import { useNavigate } from "react-router-dom"
 import TxList from "~components/txList"
+import { getProvider, sepolia } from "~lib/rpc"
+import * as Storage from "~utils/storage"
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
@@ -33,7 +35,7 @@ const WalletInfoPage = () => {
 
       if (storedWallet) {
         try {
-          const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b")
+          const provider = getProvider(sepolia)
           const balance = await provider.getBalance(storedWallet)
           const ethBalance = ethers.utils.formatEther(balance)
           console.log(`钱包地址: ${storedWallet}, 以太坊余额: ${ethBalance} ETH`)
@@ -46,10 +48,28 @@ const WalletInfoPage = () => {
     fetchWalletInfo()
     const fetchStoredTokens = async () => {
       const storedTokens = localStorage.getItem("tokens")
-      if (storedTokens) {
-        const _tokens = JSON.parse(storedTokens);
-        setTokens(_tokens.length ? _tokens : []);
+      const backgroundStoredTokens = await Storage.getItem("tokens")
+      if (backgroundStoredTokens && storedTokens) {
+        const _backgroundStoredTokens = JSON.parse(backgroundStoredTokens);
+        const _storedTokens = JSON.parse(storedTokens);
+        const merged = [..._storedTokens, ..._backgroundStoredTokens]
+
+        const seen = new Set<string>()
+        const deduped: any[] = []
+
+        for (const t of merged) {
+          const key = `${(t.address ?? "").toLowerCase()}|${t.type ?? ""}|${t.tokenId ?? ""}`
+          if (!seen.has(key)) {
+            seen.add(key)
+            deduped.push(t)
+          }
+        }
+
+        localStorage.setItem("tokens", JSON.stringify(deduped))
+        Storage.setItem("tokens", JSON.stringify(deduped))
       }
+      const _tokens = JSON.parse(localStorage.getItem("tokens"));
+      setTokens(_tokens.length ? _tokens : []);
     }
     fetchStoredTokens()
   }, [])
@@ -58,6 +78,7 @@ const WalletInfoPage = () => {
     updateTokens(tokens)
     console.log("Updated tokens:", tokens)
     localStorage.setItem("tokens", JSON.stringify(tokens))
+    Storage.setItem("tokens", JSON.stringify(tokens))
   }, [tokens])
 
   useEffect(() => {
@@ -71,7 +92,7 @@ const WalletInfoPage = () => {
   const handleAddToken = async () => {
     if (!wallet?.address || !tokenAddress) return
     try {
-      const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b")
+      const provider = getProvider(sepolia)
       let contract, balance, symbol
 
       if (tokenType === "ERC20") {

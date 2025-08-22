@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { WalletStore } from "../store/WalletStore"
 
 type PendingSign = {
   requestId: number
@@ -49,7 +48,6 @@ export default function SignMessage() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { isSigned, setIsSigned } = WalletStore.useContainer()
 
   const isTyped =
     req?.method === "eth_signTypedData" ||

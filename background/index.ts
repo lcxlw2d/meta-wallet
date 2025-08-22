@@ -2,9 +2,7 @@ import injectMyWallet from "./injectWallet";
 import { ethers } from "ethers";
 import { getProvider, sepolia } from "../lib/rpc"
 import * as Storage from "../utils/storage"
-import { WalletStore } from "~store/WalletStore";
-
-const { setIsSigned } = WalletStore.useContainer()
+import { detectTokenType } from "../utils/chain"
 
 const inject = async (tabId: number) => {
   try {
@@ -22,6 +20,20 @@ const inject = async (tabId: number) => {
     console.error("❌ Background script: 注入失败", error)
   }
 }
+
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function symbol() view returns (string)"
+]
+
+const ERC721_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function symbol() view returns (string)"
+]
+
+const ERC1155_ABI = [
+  "function balanceOf(address account, uint256 id) view returns (uint256)"
+]
 
 async function getWallet() {
   const privateKey = await Storage.getItem("privateKey")
@@ -105,31 +117,41 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
   }
   if (message.type === 'WALLET_SIGN_MESSAGE_RESPONSE') {
     try {
-      const wallet = await getWallet()
+      const { approved } = message
+      if (approved) {
+        const wallet = await getWallet()
 
-      if (!wallet) {
-        throw new Error("未找到钱包")
+        if (!wallet) {
+          throw new Error("未找到钱包")
+        }
+        console.log("📨 Background script 收到来自 content script 的签名确认!!!", message)
+        const { message: msgToSign } = message
+        if (!msgToSign) {
+          throw new Error("缺少签名消息")
+        }
+        // 使用 wallet 进行消息签名
+        const signature = await wallet.signMessage(msgToSign)
+        console.log("🖊️ 消息签名成功:", signature)
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_SIGN_MESSAGE_RESPONSE',
+          success: true,
+          error: "",
+          signature,
+          message: msgToSign
+        })
+      } else {
+        console.log("用户拒绝签名")
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_SIGN_MESSAGE_RESPONSE',
+          success: false,
+          error: "用户拒绝签名"
+        })
       }
-      console.log("📨 Background script 收到来自 content script 的签名确认!!!", message)
-      const { message: msgToSign } = message
-      if (!msgToSign) {
-        throw new Error("缺少签名消息")
-      }
-      // 使用 wallet 进行消息签名
-      const signature = await wallet.signMessage(msgToSign)
-      console.log("🖊️ 消息签名成功:", signature)
-      setIsSigned(true)
-      chrome.tabs.sendMessage(tabId, {
-        type: 'WALLET_SIGN_MESSAGE_RESPONSE',
-        success: true,
-        error: "",
-        signature,
-        message: msgToSign
-      })
+
 
     } catch (error) {
       console.error("❌ 处理签名确认失败:", error)
-      chrome.runtime.sendMessage({ type: "WALLET_SIGN_MESSAGE_RESPONSE", success: false, error: error.message })
+      chrome.tabs.sendMessage(tabId, { type: "WALLET_SIGN_MESSAGE_RESPONSE", success: false, error: error.message })
     }
 
 
@@ -179,6 +201,67 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
         error: error.message
       })
     }
+  }
+  if (message.type === 'WALLET_WATCH_ASSET') {
+    console.log("📨 Background script 收到来自 content script 的资产监听请求")
+    try {
+      const { asset } = message
+      if (!asset || !asset.address) {
+        throw new Error("缺少资产信息")
+      }
+      const handleAddToken = async () => {
+        try {
+          const provider = getProvider(sepolia)
+          const tokenType = await detectTokenType(asset.address)
+          const tokenAddress = asset.address
+          const tokenId = asset.tokenId || null
+          let contract, balance, symbol
+          const wallet = await getWallet()
+          const walletAddress = wallet ? wallet.address : null
+          let tokens = []
+          const storedTokens = await Storage.getItem("tokens")
+          if (storedTokens) {
+            const _tokens = JSON.parse(storedTokens);
+            tokens = _tokens.length ? _tokens : [];
+          }
+
+          if (tokenType === "ERC20") {
+            contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider)
+            balance = await contract.balanceOf(walletAddress)
+            symbol = await contract.symbol()
+            tokens = [...tokens, { address: tokenAddress, type: tokenType, balance: balance.toString(), symbol }]
+          } else if (tokenType === "ERC721") {
+            contract = new ethers.Contract(tokenAddress, ERC721_ABI, provider)
+            balance = await contract.balanceOf(walletAddress)
+            symbol = await contract.symbol()
+            tokens = [...tokens, { address: tokenAddress, type: tokenType, balance: balance.toString(), symbol }]
+          } else if (tokenType === "ERC1155" && tokenId) {
+            contract = new ethers.Contract(tokenAddress, ERC1155_ABI, provider)
+            balance = await contract.balanceOf(walletAddress, tokenId)
+            tokens = [...tokens, { address: tokenAddress, type: tokenType, balance: balance.toString(), tokenId }]
+          }
+          Storage.setItem("tokens", JSON.stringify(tokens))
+          return true
+        } catch (err) {
+          console.error("添加 token 失败", err)
+          return false
+        }
+      }
+      const result = await handleAddToken()
+      chrome.tabs.sendMessage(tabId, {
+        type: 'WALLET_WATCH_ASSET_RESPONSE',
+        success: result,
+        error: result ? "" : "添加资产失败"
+      })
+    } catch (error) {
+      console.error("❌ 处理资产监听请求失败:", error)
+      chrome.tabs.sendMessage(tabId, {
+        type: 'WALLET_WATCH_ASSET_RESPONSE',
+        success: false,
+        error: error.message
+      })
+    }
+
   }
 }
 

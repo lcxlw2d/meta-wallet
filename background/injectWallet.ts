@@ -10,7 +10,7 @@ export default function injectMyWallet() {
     return
   }
 
-  const watchAsset = async (asset: { address: string, symbol: string, decimals: number }) => {
+  const watchAsset = async (asset: { address: string }) => {
     console.log("👀 监听资产:", asset)
     window.postMessage({
       type: 'WALLET_WATCH_ASSET',
@@ -18,6 +18,25 @@ export default function injectMyWallet() {
       timestamp: Date.now(),
       asset
     }, '*')
+    const response = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error("监听资产超时，用户未授权"))
+      }, 30000)
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'WALLET_WATCH_ASSET_RESPONSE') {
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', handleMessage)
+          if (event.data.success) {
+            resolve(event.data)
+          } else {
+            reject(new Error(event.data.error || "用户拒绝监听资产"))
+          }
+        }
+      }
+      window.addEventListener('message', handleMessage)
+    })
+    return response
   }
   const getAccount = async () => {
     console.log("📜 获取账户信息...")
@@ -133,11 +152,26 @@ export default function injectMyWallet() {
       const { method, params } = p
       switch (method) {
         case 'eth_requestAccounts':
-          return await getAccount()
+          try {
+            const isApproved = await signMessage('请求访问账户')
+            return await getAccount()
+          } catch (error) {
+            console.error("❌ 连接失败:", error)
+            throw error
+          }
         case 'eth_sign':
           return await signMessage(params[0]?.message)
         case 'wallet_watchAsset':
-          return await watchAsset(params[0])
+          try {
+            const isApproved = await signMessage('请求监听资产')
+            if (!isApproved) {
+              throw new Error("用户拒绝监听资产")
+            }
+            return await watchAsset(params[0])
+          } catch (error) {
+            console.error("❌ 处理监听资产请求失败:", error)
+            throw error
+          }
 
         default:
           throw new Error(`Unknown method: ${method}`)

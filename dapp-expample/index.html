@@ -75,6 +75,7 @@
       <div>
         <button onclick="testSignMessage()">测试SignMessage</button>
         <button onclick="testGetAccount()">测试GetAccount</button>
+        <button onclick="testWatchAsset()">测试wallet_watchAsset</button>
       </div>
 
       <div id="status" class="status info">等待检查...</div>
@@ -192,6 +193,26 @@
             .catch((error) => {
               log(`❌ 获取账户失败: ${error.message}`)
               updateStatus(`获取账户失败: ${error.message}`, "error")
+            })
+        }
+      }
+      function testWatchAsset() {
+        if (window.myWallet) {
+          window.myWallet
+            .request({
+              method: "wallet_watchAsset",
+              params: [
+                // { address: "0x76B50696B8EFFCA6Ee6Da7F6471110F334536321" }
+                { address: "0xc0cF5768557F67eca6bd5c35eB25f5656979e30d" }
+              ]
+            })
+            .then((result) => {
+              log(`✅ 监听资产成功: ${JSON.stringify(result)}`)
+              updateStatus("监听资产成功", "success")
+            })
+            .catch((error) => {
+              log(`❌ 监听资产失败: ${error.message}`)
+              updateStatus(`监听资产失败: ${error.message}`, "error")
             })
         }
       }
