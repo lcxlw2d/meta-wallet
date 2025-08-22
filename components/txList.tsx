@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react"
 import type { AnyTx, Erc20Tx, NetworkKey, TxCategory } from "~lib/scan-api"
 import { fetchErc20TxPage, fetchNormalTxPage, formatNative, formatToken, mergeAndSort } from "~lib/scan-api"
+import * as Storage from "../utils/storage"
 
 const NETS: NetworkKey[] = [
   "ethereum",
@@ -79,7 +80,14 @@ export default function TxList() {
       setLoading(false)
     }
   }
-
+  useEffect(() => {
+    ; (async () => {
+      const currentNetwork = await Storage.getCurrentNetwork();
+      if (currentNetwork) {
+        setNet(currentNetwork as NetworkKey)
+      }
+    })()
+  }, [])
   // 网络/地址/类型变化时重载
   useEffect(() => {
     reset()

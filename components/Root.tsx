@@ -5,7 +5,6 @@ import ErrorBoundary from "./ErrorBoundary"
 import { walletProviders } from "~store"
 import { HashRouter, Routes, Route, useNavigate } from "react-router-dom"
 
-
 function BootstrapNavigator() {
   const navigate = useNavigate()
   useEffect(() => {

@@ -1,10 +1,7 @@
 import { ethers } from "ethers";
 import { getAddress } from "ethers/lib/utils";
+import { getProvider } from "../lib/rpc";
 
-// ===== 配置 RPC =====
-const provider = new ethers.providers.JsonRpcProvider(
-  `https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b`
-);
 
 // 2. ERC165 检测 ABI
 const ERC165_ABI = ["function supportsInterface(bytes4) view returns (bool)"];
@@ -28,6 +25,7 @@ const IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a92
 // 检查是否是代理合约，并获取实现合约地址
 async function getImplementationAddress(address) {
   try {
+    const provider = await getProvider();
     const storageValue = await provider.getStorageAt(address, IMPLEMENTATION_SLOT);
     if (storageValue && storageValue !== "0x" && storageValue !== ethers.constants.HashZero) {
       return ethers.utils.getAddress("0x" + storageValue.slice(-40));
@@ -45,6 +43,8 @@ export async function detectTokenType(address) {
   address = await getImplementationAddress(address);
   console.log("检测地址:", address);
   // 2. 检查 ERC165
+  const provider = await getProvider();
+
   const erc165 = new ethers.Contract(address, ERC165_ABI, provider);
   try {
     if (await erc165.supportsInterface(INTERFACE_IDS.ERC721)) {

@@ -29,7 +29,7 @@ const TransactionPage: React.FC = () => {
   async function getWallet() {
     const privateKey = await Storage.getItem("privateKey")
     if (!privateKey) return null
-    return new ethers.Wallet(privateKey, getProvider(sepolia))
+    return new ethers.Wallet(privateKey, await getProvider())
   }
 
   // Send transaction
@@ -50,7 +50,7 @@ const TransactionPage: React.FC = () => {
       return
     }
     try {
-      const provider = getProvider(sepolia);
+      const provider = await getProvider();
       const w = await getWallet();
       if (!w) {
         setStatus('未找到钱包，请先创建或导入钱包');

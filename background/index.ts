@@ -38,7 +38,7 @@ const ERC1155_ABI = [
 async function getWallet() {
   const privateKey = await Storage.getItem("privateKey")
   if (!privateKey) return null
-  return new ethers.Wallet(privateKey, getProvider(sepolia))
+  return new ethers.Wallet(privateKey, await getProvider())
 }
 
 // 在用户手势中调用 openPopup：比如右键菜单/命令/内容脚本的同步回调
@@ -211,7 +211,7 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
       }
       const handleAddToken = async () => {
         try {
-          const provider = getProvider(sepolia)
+          const provider = await getProvider()
           const tokenType = await detectTokenType(asset.address)
           const tokenAddress = asset.address
           const tokenId = asset.tokenId || null

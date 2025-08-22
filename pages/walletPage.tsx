@@ -28,6 +28,7 @@ const WalletInfoPage = () => {
   const [tokenId, setTokenId] = useState("")
   const [tokens, setTokens] = useState<any[]>([])
   const navigate = useNavigate()
+  const [currentNetwork, setCurrentNetwork] = useState<string>("sepolia")
 
   useEffect(() => {
     const fetchWalletInfo = async () => {
@@ -35,7 +36,7 @@ const WalletInfoPage = () => {
 
       if (storedWallet) {
         try {
-          const provider = getProvider(sepolia)
+          const provider = await getProvider()
           const balance = await provider.getBalance(storedWallet)
           const ethBalance = ethers.utils.formatEther(balance)
           console.log(`钱包地址: ${storedWallet}, 以太坊余额: ${ethBalance} ETH`)
@@ -72,6 +73,13 @@ const WalletInfoPage = () => {
       setTokens(_tokens.length ? _tokens : []);
     }
     fetchStoredTokens()
+    const fetchCurrentNetwork = async () => {
+      const currentNetwork = await Storage.getCurrentNetwork()
+      if (currentNetwork) {
+        setCurrentNetwork(currentNetwork)
+      }
+    }
+    fetchCurrentNetwork()
   }, [])
 
   useEffect(() => {
@@ -80,6 +88,11 @@ const WalletInfoPage = () => {
     localStorage.setItem("tokens", JSON.stringify(tokens))
     Storage.setItem("tokens", JSON.stringify(tokens))
   }, [tokens])
+
+  useEffect(() => {
+    localStorage.setItem("tokens", JSON.stringify([]))
+    Storage.setItem("tokens", JSON.stringify([]))
+  }, [currentNetwork])
 
   useEffect(() => {
     console.log(tokenAddress)
@@ -92,7 +105,7 @@ const WalletInfoPage = () => {
   const handleAddToken = async () => {
     if (!wallet?.address || !tokenAddress) return
     try {
-      const provider = getProvider(sepolia)
+      const provider = await getProvider()
       let contract, balance, symbol
 
       if (tokenType === "ERC20") {
@@ -125,8 +138,29 @@ const WalletInfoPage = () => {
     return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${tokenAddress}/logo.png`
   }
 
+  const handleSwitchNetwork = async () => {
+    const newNetwork = currentNetwork === "ethereum" ? "sepolia" : "ethereum"
+    await Storage.setCurrentNetwork(newNetwork)
+    setCurrentNetwork(newNetwork)
+    window.location.reload() // 刷新页面以应用新网络设置
+  }
+
   return (
     <div style={{ padding: 20, width: 300 }}>
+      <h2 style={{ textAlign: "center", marginBottom: 20 }}>
+        当前网络：{currentNetwork}
+        <button style={{
+          marginLeft: "10px",
+          padding: "4px 8px",
+          fontSize: 12,
+          background: "#f6851b",
+          color: "#fff",
+          border: "none",
+          borderRadius: 4,
+          cursor: "pointer"
+        }} onClick={handleSwitchNetwork}>切换网络</button>
+      </h2>
+
       <h2 style={{ textAlign: "center", marginBottom: 20 }}>钱包信息</h2>
 
       {wallet?.address && (

@@ -5,6 +5,7 @@ import { ethers } from "ethers"
 import { useRequest } from "ahooks"
 import { WalletStore } from "~store/WalletStore"
 import * as Storage from "../utils/storage"
+import { getProvider } from "~lib/rpc"
 
 export default function ImportPage() {
   const [input, setInput] = useState("")
@@ -26,9 +27,7 @@ export default function ImportPage() {
     setLoading(true)
     console.log(ethers)
     try {
-      const provider = new ethers.providers.JsonRpcProvider(
-        `https://sepolia.infura.io/v3/24704e9c4ee645e5a554ce2c53a0e20b`
-      );
+      const provider = await getProvider();
       let wallet: ethers.Wallet
       let type: "mnemonic" | "privateKey"
 
