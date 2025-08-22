@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { WalletStore } from "../store/WalletStore"
 
 type PendingSign = {
   requestId: number
@@ -48,6 +49,7 @@ export default function SignMessage() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { isSigned, setIsSigned } = WalletStore.useContainer()
 
   const isTyped =
     req?.method === "eth_signTypedData" ||
@@ -64,10 +66,8 @@ export default function SignMessage() {
           data: msg
         })
       }
-      window.addEventListener("message", (event: MessageEvent) => {
-        console.log(event.data, "📨 页面收到message")
-      })
     })()
+    return setBusy(false);
   }, [navigate])
 
   const view = useMemo(() => {
@@ -90,14 +90,20 @@ export default function SignMessage() {
     if (!req) return
     setBusy(true)
     setError(null)
+    const tabId = searchParams.get("tabId")
     chrome.runtime.sendMessage({
       type: "WALLET_SIGN_MESSAGE_RESPONSE",
       source: "myWallet",
       message: req.data,
-      payload: { requestId: req.requestId, approved, message: req.data },
+      tabId: tabId,
+      approved,
       timestamp: Date.now()
     })
     // setBusy(false)
+    setTimeout(() => {
+      setBusy(false)
+      window.close() // 关闭弹窗
+    }, 1000)
   }
 
   return (

@@ -74,6 +74,7 @@
 
       <div>
         <button onclick="testSignMessage()">测试SignMessage</button>
+        <button onclick="testGetAccount()">测试GetAccount</button>
       </div>
 
       <div id="status" class="status info">等待检查...</div>
@@ -166,9 +167,9 @@
       }
 
       function testSignMessage() {
-        if (window.myWallet && window.myWallet.signMessage) {
+        if (window.myWallet) {
           window.myWallet
-            .signMessage("请求签名")
+            .request({ method: "eth_sign", params: [{ message: "请求签名" }] })
             .then((signature) => {
               log(`✅ 签名成功: ${signature}`)
               updateStatus("签名成功", "success")
@@ -176,6 +177,21 @@
             .catch((error) => {
               log(`❌ 签名失败: ${error.message}`)
               updateStatus(`签名失败: ${error.message}`, "error")
+            })
+        }
+      }
+
+      function testGetAccount() {
+        if (window.myWallet) {
+          window.myWallet
+            .request({ method: "eth_requestAccounts" })
+            .then((account) => {
+              log(`✅ 获取账户成功: ${JSON.stringify(account)}`)
+              updateStatus("获取账户成功", "success")
+            })
+            .catch((error) => {
+              log(`❌ 获取账户失败: ${error.message}`)
+              updateStatus(`获取账户失败: ${error.message}`, "error")
             })
         }
       }
@@ -205,6 +221,12 @@
         setTimeout(() => {
           checkObjects()
         }, 2000)
+      })
+
+      window.addEventListener("message", (event) => {
+        if (event.data && event.data.source === "myWallet") {
+          console.log("Dapp 收到的消息", event.data)
+        }
       })
 
       log("🚀 测试页面已启动")

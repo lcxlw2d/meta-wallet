@@ -39,6 +39,14 @@ window.addEventListener("message", (event: MessageEvent) => {
         message: event.data.message
       })
     }
+    if (event.data.type === 'WALLET_GET_ACCOUNT_REQUEST') {
+      chrome.runtime.sendMessage({
+        type: 'WALLET_GET_ACCOUNT_REQUEST',
+        source: 'contentScript',
+        timestamp: event.data.timestamp,
+        origin: window.location.origin
+      })
+    }
 
     console.log(event.data, "🌉 Content script 收到页面消息")
   }
@@ -47,7 +55,7 @@ window.addEventListener("message", (event: MessageEvent) => {
 // 监听来自 background script 的响应
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("🌉 Content script 收到 background 响应", message)
-  if (message.type === 'WALLET_CONNECT_RESPONSE' || message.type === 'WALLET_SIGN_MESSAGE_RESPONSE_AFTER') {
+  if (message.type === 'WALLET_CONNECT_RESPONSE' || message.type === 'WALLET_SIGN_MESSAGE_RESPONSE' || message.type === 'WALLET_GET_ACCOUNT_RESPONSE') {
     // 转发响应到页面
     window.postMessage(message, '*')
   }

@@ -6,15 +6,18 @@ export interface WalletInfo {
   balance?: number; // 钱包余额，可选
 }
 
+export type RequestParams = {
+  method: string;
+  params?: any[];
+}
+
 // 扩展 Window 接口以包含自定义属性
 declare global {
   interface Window {
     myWallet?: {
       connect: () => Promise<any>
       disconnect: () => Promise<any>
-      getAccount: () => Promise<any>
-      signMessage: (message: string) => Promise<string>,
-      transaction: (tx: ethers.providers.TransactionRequest) => Promise<any>,
+      request: (p: RequestParams) => Promise<any>,
       getStatus: () => any
     }
     myWalletInjected?: boolean

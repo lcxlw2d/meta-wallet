@@ -7,6 +7,7 @@ import type { WalletInfo } from '../types'; // 假设你有一个 WalletInfo 类
 const useWalletStore = () => {
   const [wallet, setWallet] = useState<WalletInfo | null>(null)
   const [tokenList, setTokenList] = useState<any[]>([])
+  const [isSigned, setIsSigned] = useState(false)
 
   const updateWallet = (info: WalletInfo) => setWallet(info)
   const clearWallet = () => {
@@ -26,6 +27,8 @@ const useWalletStore = () => {
     clearWallet,
     tokenList,
     updateTokens,
+    isSigned,
+    setIsSigned
   }
 };
 export const WalletStore = createContainer(useWalletStore);

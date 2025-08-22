@@ -3,6 +3,7 @@ import { WalletStore } from "~store/WalletStore"
 import { ethers } from "ethers"
 import { detectTokenType } from "../utils/chain"
 import { useNavigate } from "react-router-dom"
+import TxList from "~components/txList"
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
@@ -215,6 +216,8 @@ const WalletInfoPage = () => {
               ))}
             </div>
           )}
+
+          <TxList />
 
           <button onClick={clearWallet} style={{ ...buttonStyle }}>
             断开钱包

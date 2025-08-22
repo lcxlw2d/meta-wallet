@@ -1,6 +1,6 @@
 import "../types"
 import { ethers } from "ethers"
-
+import type { RequestParams } from "../types"
 export default function injectMyWallet() {
   console.log("🔧 正在通过 background script 注入 myWallet 对象...")
 
@@ -8,6 +8,75 @@ export default function injectMyWallet() {
   if (window.myWallet || window.myWalletInjected) {
     console.log("⚠️ myWallet 对象已存在，跳过注入")
     return
+  }
+
+  const watchAsset = async (asset: { address: string, symbol: string, decimals: number }) => {
+    console.log("👀 监听资产:", asset)
+    window.postMessage({
+      type: 'WALLET_WATCH_ASSET',
+      source: 'myWallet',
+      timestamp: Date.now(),
+      asset
+    }, '*')
+  }
+  const getAccount = async () => {
+    console.log("📜 获取账户信息...")
+    window.postMessage({
+      type: 'WALLET_GET_ACCOUNT_REQUEST',
+      source: 'myWallet',
+      timestamp: Date.now()
+    }, '*')
+    const response = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error("获取账户信息超时，用户未授权"))
+      }, 30000)
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'WALLET_GET_ACCOUNT_RESPONSE') {
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', handleMessage)
+          if (event.data.success) {
+            resolve(event.data.data)
+          } else {
+            reject(new Error(event.data.error || "用户拒绝获取账户信息"))
+          }
+        }
+      }
+      window.addEventListener('message', handleMessage)
+    })
+    return response
+  }
+
+  const signMessage = async (message: string): Promise<string> => {
+    console.log(`✍️ 签名消息: ${message}`)
+
+    window.postMessage({
+      type: 'WALLET_SIGN_MESSAGE_REQUEST',
+      source: 'myWallet',
+      message,
+      timestamp: Date.now()
+    }, '*')
+
+    const signature = await new Promise<string>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error("签名超时，用户未授权"))
+      }, 30000)
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'WALLET_SIGN_MESSAGE_RESPONSE') {
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', handleMessage)
+          if (event.data.success) {
+            resolve(event.data.signature as string)
+          } else {
+            reject(new Error(event.data.error || "用户拒绝签名"))
+          }
+        }
+      }
+      window.addEventListener('message', handleMessage)
+    })
+    console.log("🖊️ 签名结果:", signature)
+    return signature
   }
 
   // 注入 myWallet 对象到页面的 window 对象
@@ -60,43 +129,19 @@ export default function injectMyWallet() {
       console.log("✅ 钱包断开连接成功")
       return { success: true, message: "钱包断开连接成功" }
     },
-    getAccount: async () => {
-      console.log("📜 获取账户信息...")
-      return { address: "0x1234567890abcdef...", balance: 0 } // 示例返回值
-    },
-    signMessage: async (message: string): Promise<string> => {
-      console.log(`✍️ 签名消息: ${message}`)
+    request: async (p: RequestParams) => {
+      const { method, params } = p
+      switch (method) {
+        case 'eth_requestAccounts':
+          return await getAccount()
+        case 'eth_sign':
+          return await signMessage(params[0]?.message)
+        case 'wallet_watchAsset':
+          return await watchAsset(params[0])
 
-      window.postMessage({
-        type: 'WALLET_SIGN_MESSAGE_REQUEST',
-        source: 'myWallet',
-        message,
-        timestamp: Date.now()
-      }, '*')
-
-      const signature = await new Promise<string>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error("签名超时，用户未授权"))
-        }, 30000)
-
-        const handleMessage = (event: MessageEvent) => {
-          if (event.data && event.data.type === 'WALLET_SIGN_MESSAGE_RESPONSE') {
-            clearTimeout(timeoutId)
-            window.removeEventListener('message', handleMessage)
-            if (event.data.success) {
-              resolve(event.data.signature as string)
-            } else {
-              reject(new Error(event.data.error || "用户拒绝签名"))
-            }
-          }
-        }
-        window.addEventListener('message', handleMessage)
-      })
-      console.log("🖊️ 签名结果:", signature)
-      return signature
-    },
-    transaction: async (tx: ethers.providers.TransactionRequest) => {
-
+        default:
+          throw new Error(`Unknown method: ${method}`)
+      }
     },
     getStatus: () => {
       console.log("📊 获取状态...")
