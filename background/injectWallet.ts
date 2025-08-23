@@ -65,7 +65,34 @@ export default function injectMyWallet() {
     })
     return response
   }
+  const switchEthereumChain = async (chain: { chainId: string }) => {
+    console.log("🔄 切换以太坊链:", chain)
+    window.postMessage({
+      type: 'WALLET_SWITCH_ETHEREUM_CHAIN_REQUEST',
+      source: 'myWallet',
+      timestamp: Date.now(),
+      chain
+    }, '*')
+    const response = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error("切换链超时，用户未授权"))
+      }, 30000)
 
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'WALLET_SWITCH_ETHEREUM_CHAIN_RESPONSE') {
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', handleMessage)
+          if (event.data.success) {
+            resolve(event.data)
+          } else {
+            reject(new Error(event.data.error || "切换链失败"))
+          }
+        }
+      }
+      window.addEventListener('message', handleMessage)
+    })
+    return response
+  }
   const signMessage = async (message: string): Promise<string> => {
     console.log(`✍️ 签名消息: ${message}`)
 
@@ -172,7 +199,17 @@ export default function injectMyWallet() {
             console.error("❌ 处理监听资产请求失败:", error)
             throw error
           }
-
+        case 'wallet_switchEthereumChain':
+          try {
+            // const isApproved = await signMessage('请求切换链')
+            // if (!isApproved) {
+            //   throw new Error("用户拒绝切换链")
+            // }
+            return await switchEthereumChain(params[0])
+          } catch (error) {
+            console.error("❌ 处理切换链请求失败:", error)
+            throw error
+          }
         default:
           throw new Error(`Unknown method: ${method}`)
       }

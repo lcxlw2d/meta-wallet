@@ -18,7 +18,7 @@ export const setCurrentNetwork = async (network: string) => {
   try {
     localStorage.setItem("currentNetwork", network)
   } catch (error) {
-    console.error("Error setting current network:", error)
+    // console.error("Error setting current network:", error)
   }
   storage.setItem("currentNetwork", network)
 }
@@ -30,7 +30,7 @@ export const getCurrentNetwork = async () => {
       return network
     }
   } catch (error) {
-    console.error("Error getting current network:", error)
+    // console.error("Error getting current network:", error)
   }
   return await storage.getItem("currentNetwork")
 }

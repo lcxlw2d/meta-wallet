@@ -76,11 +76,19 @@
         <button onclick="testSignMessage()">测试SignMessage</button>
         <button onclick="testGetAccount()">测试GetAccount</button>
         <button onclick="testWatchAsset()">测试wallet_watchAsset</button>
+        <button onclick="testWalletSwitchEthereumChain(1)">
+          切换到以太坊主网
+        </button>
+        <button onclick="testWalletSwitchEthereumChain(11155111)">
+          切换到Sepolia
+        </button>
       </div>
 
       <div id="status" class="status info">等待检查...</div>
 
       <div id="log" class="log"></div>
+
+      <div id="account" class="log"></div>
     </div>
 
     <script>
@@ -99,6 +107,11 @@
         const statusEl = document.getElementById("status")
         statusEl.textContent = message
         statusEl.className = `status ${type}`
+      }
+
+      function updateAccount(account) {
+        const accountEl = document.getElementById("account")
+        accountEl.innerHTML = `账户信息: ${JSON.stringify(account)}`
       }
 
       function clearLog() {
@@ -189,6 +202,7 @@
             .then((account) => {
               log(`✅ 获取账户成功: ${JSON.stringify(account)}`)
               updateStatus("获取账户成功", "success")
+              updateAccount(account)
             })
             .catch((error) => {
               log(`❌ 获取账户失败: ${error.message}`)
@@ -213,6 +227,27 @@
             .catch((error) => {
               log(`❌ 监听资产失败: ${error.message}`)
               updateStatus(`监听资产失败: ${error.message}`, "error")
+            })
+        }
+      }
+
+      function testWalletSwitchEthereumChain(chainId) {
+        log("🔄 测试 wallet_switchEthereumChain...")
+
+        if (window.myWallet) {
+          window.myWallet
+            .request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId }] // 这里可以替换成其他链的 ID
+            })
+            .then((result) => {
+              log(`✅ 切换链成功: ${JSON.stringify(result)}`)
+              updateStatus("切换链成功", "success")
+              updateAccount(result)
+            })
+            .catch((error) => {
+              log(`❌ 切换链失败: ${error.message}`)
+              updateStatus(`切换链失败: ${error.message}`, "error")
             })
         }
       }

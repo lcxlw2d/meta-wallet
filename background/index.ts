@@ -182,9 +182,11 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
       if (!wallet) {
         throw new Error("未找到钱包")
       }
+      const balanceWei = await wallet.getBalance()
+      const formatEther = (ethers as any).utils?.formatEther ?? (ethers as any).formatEther
       const account = {
         address: wallet.address,
-        balance: await wallet.getBalance()
+        balance: formatEther(balanceWei) // human-readable ETH string
       }
       console.log("📜 获取账户信息成功:", account)
       chrome.tabs.sendMessage(tabId, {
@@ -262,6 +264,80 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
       })
     }
 
+  }
+  if (message.type === 'WALLET_SWITCH_ETHEREUM_CHAIN_REQUEST') {
+    console.log("📨 Background script 收到来自 content script 的切换链请求")
+    try {
+      const { chain } = message
+      if (!chain || !chain.chainId) {
+        throw new Error("缺少链信息")
+      }
+      const parseChainId = (cid: string | number): number => {
+        if (typeof cid === "number") return cid
+        if (typeof cid === "string") return parseInt(cid, cid.startsWith("0x") ? 16 : 10)
+        return NaN
+      }
+
+      const chainIdNum = parseChainId(chain.chainId)
+      if (Number.isNaN(chainIdNum)) {
+        throw new Error("无效的 chainId")
+      }
+
+      const chainNameMap: Record<number, string> = {
+        1: "ethereum",
+        11155111: "sepolia",
+        // 5: "goerli",
+        // 137: "polygon",
+        // 80001: "mumbai",
+        // 10: "optimism",
+        // 42161: "arbitrum",
+        // 421614: "arbitrumSepolia",
+        // 8453: "base",
+        // 56: "bsc",
+        // 97: "bscTestnet",
+        // 43114: "avalanche",
+        // 43113: "avalancheFuji",
+        // 31337: "hardhat",
+        // 59144: "linea",
+        // 534352: "scroll"
+      }
+
+      const newNetwork = chainNameMap[chainIdNum] || `chain-${chainIdNum}`
+      try {
+        await Storage.setCurrentNetwork(newNetwork)
+        const wallet = await getWallet()
+        if (!wallet) {
+          throw new Error("未找到钱包")
+        }
+        const balanceWei = await wallet.getBalance()
+        const formatEther = (ethers as any).utils?.formatEther ?? (ethers as any).formatEther
+        const account = {
+          address: wallet.address,
+          balance: formatEther(balanceWei) // human-readable ETH string
+        }
+        console.log("📜 获取账户信息成功:", account)
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_SWITCH_ETHEREUM_CHAIN_RESPONSE',
+          success: true,
+          error: "",
+          accountInfo: account
+        })
+      } catch (error) {
+        console.error("❌ 切换链失败:", error)
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_SWITCH_ETHEREUM_CHAIN_RESPONSE',
+          success: false,
+          error: error.message
+        })
+      }
+    } catch (error) {
+      console.error("❌ 处理切换链请求失败:", error)
+      chrome.tabs.sendMessage(tabId, {
+        type: 'WALLET_SWITCH_ETHEREUM_CHAIN_RESPONSE',
+        success: false,
+        error: error.message
+      })
+    }
   }
 }
 
