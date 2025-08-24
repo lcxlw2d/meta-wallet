@@ -320,7 +320,10 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
           type: 'WALLET_SWITCH_ETHEREUM_CHAIN_RESPONSE',
           success: true,
           error: "",
-          accountInfo: account
+          accountInfo: {
+            ...account,
+            chainId: chainIdNum
+          }
         })
       } catch (error) {
         console.error("❌ 切换链失败:", error)
@@ -334,6 +337,64 @@ const handleContentScriptMessage = async (tabId: number, message: any, sender: a
       console.error("❌ 处理切换链请求失败:", error)
       chrome.tabs.sendMessage(tabId, {
         type: 'WALLET_SWITCH_ETHEREUM_CHAIN_RESPONSE',
+        success: false,
+        error: error.message
+      })
+    }
+  }
+  if (message.type === 'WALLET_ADD_ETHEREUM_CHAIN_REQUEST') {
+    console.log("📨 Background script 收到来自 content script 的添加链请求")
+    try {
+      const { chain } = message
+      if (!chain || !chain.chainId) {
+        throw new Error("缺少链信息")
+      }
+      const parseChainId = (cid: string | number): number => {
+        if (typeof cid === "number") return cid
+        if (typeof cid === "string") return parseInt(cid, cid.startsWith("0x") ? 16 : 10)
+        return NaN
+      }
+
+      const chainIdNum = parseChainId(chain.chainId)
+      if (Number.isNaN(chainIdNum)) {
+        throw new Error("无效的 chainId")
+      }
+
+      const newNetwork = `chain-${chainIdNum}`
+      try {
+        await Storage.setCurrentNetwork(newNetwork)
+        const wallet = await getWallet()
+        if (!wallet) {
+          throw new Error("未找到钱包")
+        }
+        const balanceWei = await wallet.getBalance()
+        const formatEther = (ethers as any).utils?.formatEther ?? (ethers as any).formatEther
+        const account = {
+          address: wallet.address,
+          balance: formatEther(balanceWei) // human-readable ETH string
+        }
+        console.log("📜 获取账户信息成功:", account)
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_ADD_ETHEREUM_CHAIN_RESPONSE',
+          success: true,
+          error: "",
+          accountInfo: {
+            ...account,
+            chainId: chainIdNum
+          }
+        })
+      } catch (error) {
+        console.error("❌ 添加链失败:", error)
+        chrome.tabs.sendMessage(tabId, {
+          type: 'WALLET_ADD_ETHEREUM_CHAIN_RESPONSE',
+          success: false,
+          error: error.message
+        })
+      }
+    } catch (error) {
+      console.error("❌ 处理添加链请求失败:", error)
+      chrome.tabs.sendMessage(tabId, {
+        type: 'WALLET_ADD_ETHEREUM_CHAIN_RESPONSE',
         success: false,
         error: error.message
       })

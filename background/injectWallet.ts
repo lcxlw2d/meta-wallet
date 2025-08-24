@@ -93,6 +93,34 @@ export default function injectMyWallet() {
     })
     return response
   }
+  const addEthereumChain = async (chain: { chainId: string, chainName: string, rpcUrls: string[], iconUrls: string[], nativeCurrency: { name: string, symbol: string, decimals: number }, blockExplorerUrls: string[] }) => {
+    console.log("🔄 添加以太坊链:", chain)
+    window.postMessage({
+      type: 'WALLET_ADD_ETHEREUM_CHAIN_REQUEST',
+      source: 'myWallet',
+      timestamp: Date.now(),
+      chain
+    }, '*')
+    const response = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error("添加链超时，用户未授权"))
+      }, 30000)
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'WALLET_ADD_ETHEREUM_CHAIN_RESPONSE') {
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', handleMessage)
+          if (event.data.success) {
+            resolve(event.data)
+          } else {
+            reject(new Error(event.data.error || "添加链失败"))
+          }
+        }
+      }
+      window.addEventListener('message', handleMessage)
+    })
+    return response
+  }
   const signMessage = async (message: string): Promise<string> => {
     console.log(`✍️ 签名消息: ${message}`)
 
@@ -208,6 +236,14 @@ export default function injectMyWallet() {
             return await switchEthereumChain(params[0])
           } catch (error) {
             console.error("❌ 处理切换链请求失败:", error)
+            throw error
+          }
+        case 'wallet_addEthereumChain':
+          try {
+            const isApproved = await signMessage('请求访问账户')
+            return await addEthereumChain(params[0])
+          } catch (error) {
+            console.error("❌ 连接失败:", error)
             throw error
           }
         default:

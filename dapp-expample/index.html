@@ -82,6 +82,7 @@
         <button onclick="testWalletSwitchEthereumChain(11155111)">
           切换到Sepolia
         </button>
+        <button onclick="testAddNetwork()">添加网络Gnosis</button>
       </div>
 
       <div id="status" class="status info">等待检查...</div>
@@ -248,6 +249,40 @@
             .catch((error) => {
               log(`❌ 切换链失败: ${error.message}`)
               updateStatus(`切换链失败: ${error.message}`, "error")
+            })
+        }
+      }
+
+      function testAddNetwork() {
+        if (window.myWallet) {
+          window.myWallet
+            .request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: "0x64",
+                  chainName: "Gnosis",
+                  rpcUrls: ["https://rpc.ankr.com/gnosis"],
+                  iconUrls: [
+                    "https://xdaichain.com/fake/example/url/xdai.svg",
+                    "https://xdaichain.com/fake/example/url/xdai.png"
+                  ],
+                  nativeCurrency: {
+                    name: "xDAI",
+                    symbol: "xDAI",
+                    decimals: 18
+                  },
+                  blockExplorerUrls: ["https://blockscout.com/poa/xdai/"]
+                }
+              ]
+            })
+            .then((result) => {
+              log(`✅ 添加网络成功: ${JSON.stringify(result)}`)
+              updateStatus("添加网络成功", "success")
+            })
+            .catch((error) => {
+              log(`❌ 添加网络失败: ${error.message}`)
+              updateStatus(`添加网络失败: ${error.message}`, "error")
             })
         }
       }
