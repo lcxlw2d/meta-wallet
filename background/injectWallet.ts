@@ -240,7 +240,7 @@ export default function injectMyWallet() {
           }
         case 'wallet_addEthereumChain':
           try {
-            const isApproved = await signMessage('请求访问账户')
+            const isApproved = await signMessage('请求添加网络')
             return await addEthereumChain(params[0])
           } catch (error) {
             console.error("❌ 连接失败:", error)
